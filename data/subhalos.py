@@ -19,5 +19,5 @@ for i in range(72,91,1):
     cols.append(col4)
     
     cols_to_write=fits.ColDefs(cols)
-    tbhdu = fits.BinTableHDU.from_columns(cols)
+    tbhdu = fits.BinTableHDU.from_columns(cols_to_write)
     tbhdu.writeto("/u/mhuertas/TNG50/cats/TNG50_0"+str(i)+"_physprop.fit",overwrite='True')
