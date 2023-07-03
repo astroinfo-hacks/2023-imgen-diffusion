@@ -2,7 +2,7 @@ import illustris_python as il
 import numpy as np
 from astropy.io import fits
 
-basePath = '/virgo/simulations/IllustrisTNG/TNG50-1/output/'
+basePath = '/virgotng/universe/IllustrisTNG/TNG50-1/output/'
 fields = ['SubhaloFlag','SubhaloMass','SubhaloHalfmassRad']
 
 cols=[]
