@@ -9,6 +9,7 @@ cols=[]
 for i in range(72,91,1):
     subhalos = il.groupcat.loadSubhalos(basePath,i,fields=fields)
     col1=fits.Column(name='SubhaloMass', format='D', array=subhalos['SubhaloMass'] * 1e10 / 0.704)
+    print(subhalos['SubhaloMass'].shape)
     cols.append(col1)
     col2=fits.Column(name='SHID', format='D', array=subhalos['count'])
     cols.append(col2)
