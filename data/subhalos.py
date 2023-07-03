@@ -11,7 +11,7 @@ for i in range(72,91,1):
     col1=fits.Column(name='SubhaloMass', format='D', array=subhalos['SubhaloMass'][0] * 1e10 / 0.704)
     print(subhalos['SubhaloMass'].shape)
     cols.append(col1)
-    col2=fits.Column(name='SHID', format='D', array=subhalos['count'][0])
+    col2=fits.Column(name='SHID', format='D', array=np.linspace(0,subhalos['SubhaloMass'].shape))
     cols.append(col2)
     col3=fits.Column(name='SubhaloHalfMassRad', format='D', array=subhalos['SubhaloHalfmassRad'][0])
     cols.append(col3)
