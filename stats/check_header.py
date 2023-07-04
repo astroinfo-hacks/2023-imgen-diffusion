@@ -2,6 +2,12 @@ from astropy.io import fits
 import numpy as np
 import os
 import json
+import logging
+import sys
+
+TEMPLATE = '%(asctime)s %(levelname)5s [%(name)s %(lineno)d] %(message)s'
+logging.basicConfig(format=TEMPLATE, stream=sys.stdout, level=logging.INFO)
+s_logger = logging.getLogger(__name__)
 
 # data_path = "/scratch/astroinfo2023/diffusion/"
 data_path = "./"
@@ -47,8 +53,10 @@ def get_kw_values(hdu_list, kw_name):
 # #def get_fov_size(hdu_list):
 
 
+s_logger.info(f"Processing {__file__}")
 general_stats = {"size": {}}
 for file in files:
+    s_logger.info(f"Processing file {file}")
     if not file.endswith(".fits"):
         continue
 
@@ -56,19 +64,20 @@ for file in files:
 
         image_size = get_images_size(hdr_1.info(False))
         if not image_size:
-            print(f"Warning: Image {file} has not consistent images")
+            s_logger.warning(f"Image {file} has not consistent images")
             continue
         if image_size not in general_stats["size"].keys():
             general_stats["size"][image_size] = 1
         else:
             general_stats["size"][image_size] += 1
 
-        redshifts = get_kw_values(hdr_1, "REDSHIFT")
-        wavelengths = get_kw_values(hdr_1, "WLPIVOT")
-        fov_sizes = get_kw_values(hdr_1, "FOVSIZE")
+        s_logger.info(f"Image in file {file} has size {image_size}")
+        # redshifts = get_kw_values(hdr_1, "REDSHIFT")
+        # wavelengths = get_kw_values(hdr_1, "WLPIVOT")
+        # fov_sizes = get_kw_values(hdr_1, "FOVSIZE")
 
-print(redshifts)
-print(fov_sizes)
+# print(redshifts)
+# print(fov_sizes)
 print(general_stats)
 
 for key, val in general_stats["size"].items():
