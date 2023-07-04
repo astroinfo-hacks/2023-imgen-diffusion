@@ -3,6 +3,7 @@ import astropy
 import matplotlib
 import matplotlib.pyplot as plt
 import copy
+from scipy.ndimage import zoom
 
 import astropy.io.fits as _fits
 from astropy.nddata import block_reduce, block_replicate
@@ -95,13 +96,16 @@ def get_image_in_janski(image_data, z):
 
     return image_in_janskis
 
-def get_downscaled_image_at_z_in_janski(image_data, z, experiment = 'HSC'):
+def get_downscaled_image_at_z_in_janski(image_data, z, experiment = 'HSC', use_zoom_func = False):
 
     image_data_in_janski = get_image_in_janski(image_data, z = z)
 
     reduce_factor = get_down_scale_factor(z, experiment = experiment)
 
-    # Open the image file
-    image_smaller = block_reduce(image_data_in_janski, reduce_factor)
+    if(use_zoom_func):
+        # Open the image file
+        image_smaller = block_reduce(image_data_in_janski, reduce_factor)
+    else:
+        image_smaller = zoom(image_data_in_janski, 1 / reduce_factor)
 
     return image_smaller
