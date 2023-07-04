@@ -46,14 +46,21 @@ class SubsplitDictionaries:
         key_with_camera = "{0}_{1}".format(key,CAMERA)
         assert (not self.AlreadyExisting(key_with_camera,True))
         if subsplit == tfds.Split.TRAIN:
-            if key not in self.train_dict:
+            if key not in self.valid_dict and key not in self.test_dict:
+                assert key not in self.train_dict
                 self.train_dict.append(key)
+                return True
         elif subsplit == tfds.Split.VALIDATION:
-            if key not in self.train_dict:
-                self.train_dict.append(key)
+            if key not in self.train_dict and key not in self.test_dict:
+                assert key not in self.valid_dict
+                self.valid_dict.append(key)
+                return True
         elif subsplit == tfds.Split.TEST:
-            if key not in self.train_dict:
-                self.train_dict.append(key)
+            if key not in self.train_dict and key not in self.valid_dict:
+                assert key not in self.test_dict
+                self.test_dict.append(key)
+                return True
+        return False
 
 
 class TNGDataSet(tfds.core.GeneratorBasedBuilder):
@@ -134,8 +141,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
 
       key = SubsplitDictionaries.CreateKey(example["EXTNAME"],example["ORIGIN"],example["SIMTAG"],
                                            example["SNAPNUM"],example["SUBHALO"])
-      key_with_camera = "{0}_{1}".format(key,example["CAMERA"])
-      if self.internal_dict.AlreadyExisting(key_with_camera):
+      if self.internal_dict.FindOrCreate(key,example["CAMERA"],split_type):
           continue
       
       example["REDSHIFT"] = fit_elem.header["REDSHIFT"]
@@ -144,7 +150,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
       example["BUNIT"] = fit_elem.header["BUNIT"]
       example["NAXIS1"] = fit_elem.header["NAXIS1"]
       example["NAXIS2"] = fit_elem.header["NAXIS2"]
-      example["img"] = fit_elem.data
+      example["img"] = ScaleImage(fit_elem.data)
 
       self.list_of_fits.remove(fit_file)
     
