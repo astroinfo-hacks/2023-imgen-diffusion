@@ -1,9 +1,9 @@
 import os
-import glob
+from random import choice
 import tensorflow as tf
 import h5py as h5py
-import yaml as tfds
-from scipy.interpolate import interp1d
+import tensorflow_datasets as tfds
+from astropy.utils.data import get_pkg_data_filename
 from astropy.table import Table
 from astropy.io import fits
 import numpy as np
@@ -19,11 +19,41 @@ _DESCRIPTION = """
 _CITATION = ""
 _URL = "https://github.com/astroinfo-hacks/2023-imgen-diffusion"
 
+histo_grame = {}
 
-def ReturnFiles(dir):
-   for root, dirs, files in os.walk(dir, topdown=False):
-    for name in files:
-        yield (os.path.join(root, name))
+def ScaleImage(img):
+    return img
+
+class SubsplitDictionaries:
+    def __init__(self):
+        self.train_dict = []
+        self.valid_dict = []
+        self.test_dict = []
+        self.full_list = []
+
+    @staticmethod
+    def CreateKey(EXTNAME, ORIGIN, SIMTAG, SNAPNUM, SUBHALO):
+        return "{0}_{1}_{2}_{3}_{4}".format(EXTNAME, ORIGIN, SIMTAG, SNAPNUM, SUBHALO)
+    
+    # Sanity check
+    def AlreadyExisting(self,key_with_camera,Create=False):
+        res =  key_with_camera not in self.full_list
+        if Create:
+          self.full_list.append(key_with_camera)
+        return res
+
+    def FindOrCreate(self,key, CAMERA,subsplit):
+        key_with_camera = "{0}_{1}".format(key,CAMERA)
+        assert (not self.AlreadyExisting(key_with_camera,True))
+        if subsplit == tfds.Split.TRAIN:
+            if key not in self.train_dict:
+                self.train_dict.append(key)
+        elif subsplit == tfds.Split.VALIDATION:
+            if key not in self.train_dict:
+                self.train_dict.append(key)
+        elif subsplit == tfds.Split.TEST:
+            if key not in self.train_dict:
+                self.train_dict.append(key)
 
 
 class TNGDataSet(tfds.core.GeneratorBasedBuilder):
@@ -33,9 +63,27 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
   RELEASE_NOTES = {'1.0.0': 'Initial release.',}
   MANUAL_DOWNLOAD_INSTRUCTIONS = "Nothing to download. Dataset was generated at first call."
   
+  def __init__(self):
+      super(TNGDataSet).__init__()
+      self.internal_dict : SubsplitDictionaries
+      self.isPopulated = False
+      self.list_of_fits = []
+    
+  def PopulateFileList(self,fit_path):
+      if self.isPopulated:
+          return
+      else:
+        assert len(self.list_of_fits) == 0
+
+        for root, dirs, files in os.walk(fit_path, topdown=False):
+            for name in files:
+                self.list_of_fits.append(os.path.join(root, name))
+        # Make sure that some data exists
+        assert len(self.list_of_fits) > 0
+        self.isPopulated = True
+
   def _info(self) -> tfds.core.DatasetInfo:
     """Returns the dataset metadata."""
-    N_TIMESTEPS = 280
     return tfds.core.DatasetInfo(
         builder=self,
         description=_DESCRIPTION,
@@ -44,103 +92,60 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
         # Two features: image with 3 channels (stellar light, velocity map, velocity dispersion map)
         #  and redshift value of last major merger
         features=tfds.features.FeaturesDict({
-            #'noiseless_griz': tfds.features.Tensor(shape=(128, 128, 4), dtype=tf.float32),
-            #'stellar_light': tfds.features.Tensor(shape=(512, 512), dtype=tf.float32),
-            #'velocity_map': tfds.features.Tensor(shape=(512, 512), dtype=tf.float32),
-            #'velocity_dispersion_map': tfds.features.Tensor(shape=(512, 512), dtype=tf.float32),
-            "sed": tfds.features.Tensor(shape=(143,), dtype=tf.float32),
-            "time": tfds.features.Tensor(shape=(N_TIMESTEPS,), dtype=tf.dtypes.float32),
-            #"SFR_halfRad": tfds.features.Tensor(shape=(N_TIMESTEPS,), dtype=tf.dtypes.float32),
-            #"SFR_Rad": tfds.features.Tensor(shape=(N_TIMESTEPS,), dtype=tf.dtypes.float32),
-            "SFR_Max": tfds.features.Tensor(shape=(N_TIMESTEPS,), dtype=tf.dtypes.float32),
-            #"Mstar_Half": tfds.features.Tensor(shape=(N_TIMESTEPS,), dtype=tf.dtypes.float32),
-            "Mstar": tfds.features.Tensor(shape=(N_TIMESTEPS,), dtype=tf.dtypes.float32),
-            'mass_quantiles': tfds.features.Tensor(shape=(9,), dtype=tf.float32),
-            'last_over_max': tf.float32,
-            #'last_major_merger': tf.float32,
-            'object_id': tf.int32
+            "img" : tfds.features.Tensor(shape=(500,500) , dtype=tf.float32),
+            "EXTNAME" : tf.string,
+            "ORIGIN" : tf.string,
+            "SIMTAG" : tf.string,
+            "SNAPNUM" : tf.int32,
+            "SUBHALO" : tf.int32,
+            "CAMERA" : tf.int32,
+            "REDSHIFT" : tf.float32,
+            "FILTER" : tf.string,
+            "FOVSIZE" : tf.float32,
+            "BUNIT" : tf.string,
+            "NAXIS1" : tf.int32,
+            "NAXIS2" : tf.int32
         }),
-        supervised_keys=('noiseless_griz', 'last_major_merger'), 
     )
 
-  def _split_generators(self, p):
+  def _split_generators(self, dl_manager: tfds.download.DownloadManager):
     """Returns generators according to split"""
-    return {tfds.Split.TRAIN: self._generate_examples(str(dl.manual_dir))}
+    return {tfds.Split.TRAIN: self._generate_examples(str(dl_manager.manual_dir),tfds.Split.TRAIN) ,
+            tfds.Split.VALIDATION: self._generate_examples(str(dl_manager.manual_dir),tfds.Split.VALIDATION),
+            tfds.Split.TEST: self._generate_examples(str(dl_manager.manual_dir),tfds.Split.TEST)}
 
-  def _generate_examples(self, root_path):
+  def _generate_examples(self, fit_path,split_type):
     """Yields examples."""
 
+    # Only populated the first time
+    self.PopulateFileList(fit_path)
+    # Select randomly a file
+    fit_file = choice(self.list_of_fits)
+    fitm = fits.open(fit_file)
+    for fit_elem in fitm:
+      example = {}
+
+      example["EXTNAME"] = fit_elem.header["EXTNAME"]
+      example["ORIGIN"] = fit_elem.header["ORIGIN"]
+      example["SIMTAG"] = fit_elem.header["SIMTAG"]
+      example["SNAPNUM"] = fit_elem.header["SNAPNUM"]
+      example["SUBHALO"] = fit_elem.header["SUBHALO"]
+      example["CAMERA"] = fit_elem.header["CAMERA"]
+
+      key = SubsplitDictionaries.CreateKey(example["EXTNAME"],example["ORIGIN"],example["SIMTAG"],
+                                           example["SNAPNUM"],example["SUBHALO"])
+      key_with_camera = "{0}_{1}".format(key,example["CAMERA"])
+      if self.internal_dict.AlreadyExisting(key_with_camera):
+          continue
+      
+      example["REDSHIFT"] = fit_elem.header["REDSHIFT"]
+      example["FILTER"] = fit_elem.header["FILTER"]
+      example["FOVSIZE"] = fit_elem.header["FOVSIZE"]
+      example["BUNIT"] = fit_elem.header["BUNIT"]
+      example["NAXIS1"] = fit_elem.header["NAXIS1"]
+      example["NAXIS2"] = fit_elem.header["NAXIS2"]
+      example["img"] = fit_elem.data
+
+      self.list_of_fits.remove(fit_file)
     
-    # read EAGLE hd5y + filter names + filter wavelength
-    hf = h5py.File(root_path+'/dataMagnitudes_2000kpc_EMILES_PDXX_DUST_CH_028_z000p000.hdf5', 'r')
-    wl = np.loadtxt(root_path+"/wl.csv")
-    text_file = open(root_path+"/fnames.csv", "r")
-    fname_list = text_file.readlines()
-    sfh = hf.get('Data/SFhistory')
-    tbins = hf.get('Data/SFbins')
-    time = (tbins[1:] + tbins[:-1] )/2.
-
-    mstar  = hf.get('Data/StellarMassNew')  
-    
-    # sfh
-    sfh = hf.get('Data/SFhistory')
-    nobjects = sfh.shape[0]
-    tbins = hf.get('Data/SFbins')
-    time = (tbins[1:] + tbins[:-1] )/2.
-    deltat=tbins[1:] - tbins[:-1]
-   
-        
-   
-
-    for i in range(len(mstar)):
-        object_id = i
-
-        if True:
-            
-            
-            if np.log10(mstar[i])<9.5:
-                continue
-
-            # sed
-    
-            mag = [] 
-            for f in fname_list:
-                mag.append(hf['Data'][f.strip()][1])
-            app_mag = np.array(mag)+5*(np.log10(20e6)-1) #assume at 20pc
-            flux = 10**(.4*(-app_mag+8.90)) #convert to Jy
-            
-            example = {'sed': flux}
-            
-            #example.update({'sed': np.array(flux).astype('float32')})
-
-        
-            #mstar growth
-     
-    
-            mgrowth = np.cumsum(deltat*sfh[i])
-            example.update({'Mstar': np.array(mgrowth).astype('float32')})
-   
-
-            #sfh
-    
-            example.update({'time': np.array(time).astype('float32')})
-            example.update({'SFR_Max': np.array(sfh[i]).astype('float32')})
-            
-            
-            #quantiles
-            mass_history_summaries = find_summaries(example['Mstar'],
-                                                example['time'])
-            last_over_max = example['Mstar'][0]/np.max(example['Mstar'])
-            example.update({'mass_quantiles': mass_history_summaries,
-                        'last_over_max': last_over_max,
-                        'object_id': object_id})
-            
-            
-            
-
-
-    
-
-            yield object_id, example
-        else:
-            continue      
+      yield example
