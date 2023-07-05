@@ -104,8 +104,8 @@ def get_downscaled_image_at_z_in_janski(image_data, z, experiment = 'HSC', use_z
 
     if(use_zoom_func):
         # Open the image file
-        image_smaller = block_reduce(image_data_in_janski, reduce_factor)
-    else:
         image_smaller = zoom(image_data_in_janski, 1 / reduce_factor)
+    else:
+        image_smaller = block_reduce(image_data_in_janski, reduce_factor)
 
     return image_smaller
