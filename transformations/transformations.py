@@ -104,6 +104,7 @@ def get_downscaled_image_at_z_in_janski(image_data, z, experiment = 'HSC', use_z
 
     if(use_zoom_func):
         # Open the image file
+        # use zoom function: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html
         image_smaller = zoom(image_data_in_janski, 1 / reduce_factor)
     else:
         image_smaller = block_reduce(image_data_in_janski, reduce_factor)
