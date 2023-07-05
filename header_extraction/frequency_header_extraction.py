@@ -1,4 +1,4 @@
-from astropy import fits
+from astropy.io import fits
 import numpy as np
 import os
 import csv

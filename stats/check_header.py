@@ -4,16 +4,23 @@ import os
 import json
 import logging
 import sys
+from glob import glob
 
 TEMPLATE = '%(asctime)s %(levelname)5s [%(name)s %(lineno)d] %(message)s'
 logging.basicConfig(format=TEMPLATE, stream=sys.stdout, level=logging.INFO)
 s_logger = logging.getLogger(__name__)
 
+
 # data_path = "/scratch/astroinfo2023/diffusion/"
 data_path = "./"
 output_path = "header.txt"
 
-files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
+files = glob(os.path.join(data_path, "0*", "*.fits")) + \
+        glob(os.path.join(data_path), "data", "0*", "*.fits")
+
+np.random.shuffle(files)
+
+files = files[:200]
 
 header_stats = {}
 
