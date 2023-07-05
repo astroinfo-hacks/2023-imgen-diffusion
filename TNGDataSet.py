@@ -97,6 +97,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
             test_percent=0.1,
             Scaler_fcn=ScaleImage ,
             generation_verbosity=1000,
+            Image_Size=(150,150),
             band_filters=['CFHT_MEGACAM.U', 'SUBARU_HSC.G' ,'SUBARU_HSC.R' ,'CFHT_MEGACAM.R' ,'SUBARU_HSC.I', 'SUBARU_HSC.Z' ,'SUBARU_HSC.Y'],
             **kwargs):
         super(TNGDataSet,self).__init__(**kwargs)
@@ -114,8 +115,9 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
         self.nb_of_train = 0
         self.nb_of_val = 0
         self.nb_of_test = 0
-        # Define the scaler function
+        # Define the simage helpers
         self.Scaler_fcn = Scaler_fcn
+        self.Image_Size = Image_Size
         # Define selected filters
         self.band_filters = band_filters
         # helper
@@ -178,7 +180,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
             # Two features: image with 3 channels (stellar light, velocity map, velocity dispersion map)
             #  and redshift value of last major merger
             features=tfds.features.FeaturesDict({
-                "img" : tfds.features.Tensor(shape=(500,500) , dtype=tf.float32),
+                "img" : tfds.features.Tensor(shape=(150,150) , dtype=tf.float32),
                 "EXTNAME" : tf.string,
                 "ORIGIN" : tf.string,
                 "SIMTAG" : tf.string,
