@@ -110,3 +110,31 @@ def get_downscaled_image_at_z_in_janski(image_data, z, experiment = 'HSC', use_z
         image_smaller = block_reduce(image_data_in_janski, reduce_factor)
 
     return image_smaller
+
+def normalize_min_max_func(x):
+
+    x_min = np.min(x)
+    x_max = np.max(x)
+
+    return (x - x_min) / (x_max - x_min)
+
+def ScaleImage(img, z = 0.1, experiment = 'HSC', new_size = 150, normalize_min_max = True):
+
+    """
+    A function that converts the image as an array to the desired
+
+    """
+
+    rescaled_image = _transformations.get_downscaled_image_at_z_in_janski(
+        image_data = img,
+        z = z,
+        experiment = experiment,
+        use_zoom_func = True
+    )
+
+    image_desired_size = tf.image.resize_with_crop_or_pad(rescaled_image[:,:,None], new_size, new_size)[:,:,0].numpy()
+
+    if(normalize_min_max):
+        return normalize_min_max_func(image_desired_size)
+    else:
+        return image_desired_size
