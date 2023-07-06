@@ -11,7 +11,8 @@ import pandas as pd
 from typing import Any, ClassVar, Dict, Iterable, Iterator, List, Optional, Tuple, Type, Union
 from etils import epath
 from pathlib import Path
-
+from tensorflow_datasets.core.utils import gcs_utils
+gcs_utils._is_gcs_disabled = True
 
 def Logger(str,verbosity=0):
     """

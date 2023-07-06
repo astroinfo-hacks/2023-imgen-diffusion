@@ -8,6 +8,7 @@ from scipy.ndimage import zoom
 import astropy.io.fits as _fits
 from astropy.nddata import block_reduce, block_replicate
 from astropy.cosmology import Planck15
+import tensorflow as tf
 
 pixel_conversion = {}
 pixel_conversion['HSC'] = 0.17 * astropy.units.arcsec # arcsec / pixel
@@ -125,7 +126,7 @@ def ScaleImage(img, z = 0.1, experiment = 'HSC', new_size = 150, normalize_min_m
 
     """
 
-    rescaled_image = _transformations.get_downscaled_image_at_z_in_janski(
+    rescaled_image = get_downscaled_image_at_z_in_janski(
         image_data = img,
         z = z,
         experiment = experiment,
