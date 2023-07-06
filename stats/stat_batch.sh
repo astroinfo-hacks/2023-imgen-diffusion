@@ -7,6 +7,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=skylake
 #SBATCH --mem=10GB
+#SBATCH --mail-user=jimenez@apc.in2p3.fr
 
 # List the available gpu cards
 
@@ -19,7 +20,4 @@ eval "$(micromamba shell hook --shell bash)"
 micromamba activate tpml_tuesday
 
 python stats/check_header.py
-PWD=$(pwd)
-echo "Procesing from directory $PWD"
-
-
+echo "Processing from directory $(pwd)"
