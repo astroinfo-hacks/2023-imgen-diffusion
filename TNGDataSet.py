@@ -92,7 +92,8 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
     MANUAL_DOWNLOAD_INSTRUCTIONS = "Nothing to download. Dataset was generated at first call."
 
     def __init__(
-            self,train_percent=0.8, 
+            self,input_dir, 
+            train_percent=0.8, 
             val_percent=0.1, 
             test_percent=0.1,
             Scaler_fcn=ScaleImage ,
@@ -106,7 +107,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
         self.list_of_fits = []
         # Notify user if he is using wierd percentages
         if (train_percent + val_percent + test_percent) != 1:
-            Logger("TNGDataSet WARNING : Only {0}% of the data will be assigned")
+            Logger("TNGDataSet WARNING : Only {0}% of the data will be assigned".format(str((train_percent + val_percent + test_percent))))
         # register percenteges
         self.train_percent = train_percent
         self.val_percent = val_percent
@@ -123,6 +124,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
         # helper
         self.hit_count = {}
         self.generation_verbosity = generation_verbosity
+        self.input_dir = input_dir
     
     def PopulateFileList(self,fit_path):
         if self.isPopulated:
@@ -206,7 +208,7 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
         """Yields examples."""
 
         # Only populated the first time
-        self.PopulateFileList(fit_path)
+        self.PopulateFileList(self.input_dir)
 
         while len(self.list_of_fits) > 0 and not self.EnoughSamples(split_type):
             # Select randomly a file
@@ -259,3 +261,35 @@ class TNGDataSet(tfds.core.GeneratorBasedBuilder):
             # If we took all data with selected filters this file is done remove it
             if self.hit_count.get(fit_file,0) == len(self.band_filters):
                 self.list_of_fits.remove(fit_file)
+
+
+
+def loadTNGDataset(
+            input_dir, 
+            output_dir,
+            train_percent=0.8, 
+            val_percent=0.1, 
+            test_percent=0.1,
+            Scaler_fcn=None ,
+            generation_verbosity=1000,
+            Image_Size=(150,150),
+            band_filters=['CFHT_MEGACAM.U', 'SUBARU_HSC.G' ,'SUBARU_HSC.R' ,'CFHT_MEGACAM.R' ,'SUBARU_HSC.I', 'SUBARU_HSC.Z' ,'SUBARU_HSC.Y'],
+            subsets = [tfds.Split.TRAIN,tfds.Split.VALIDATION, tfds.Split.TEST]):
+    
+    # A Scaling must exist
+    assert(ScaleImage is not None)
+
+    arg_dict = {
+    'input_dir':input_dir,
+    'train_percent':train_percent,
+    'val_percent':val_percent, 
+    'test_percent':test_percent , 
+    'Image_Size':Image_Size , 
+    'generation_verbosity' : generation_verbosity , 
+    'Scaler_fcn':Scaler_fcn,
+    'band_filters' : band_filters
+    }
+    #subsets = [tfds.Split.TRAIN,tfds.Split.VALIDATION]
+    ds = tfds.load('TNGDataSet', split=subsets, data_dir=output_dir, builder_kwargs=arg_dict)
+
+    return ds
