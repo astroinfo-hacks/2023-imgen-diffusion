@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import haiku as hk
+import pickle
 
 from typing import Mapping, Optional, Sequence, Union
 
@@ -244,6 +245,17 @@ class UResNet(hk.Module):
 
     # Second to last upsampling, merging with input branch
     return self.final_conv(out)/(jnp.abs(condition)*jnp.ones_like(inputs)+1e-4)
+
+def load_denoising_model_params(path):
+    
+    with open(path, 'rb') as handle:
+        params, state, opt_state = pickle.load(handle)
+
+    return params, state, opt_state
+
+def load_denoising_model(params, state, opt_state):
+    model = hk.transform_with_state(lambda x, sigma, is_training=False: SmallUResNet()(x, sigma, is_training))
+    return model
 
 class SmallUResNet(UResNet):
   """ResNet18."""
